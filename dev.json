@@ -1,0 +1,75 @@
+{
+	"title": "Test script",
+	"version": "1.0",
+	"constants": 
+	{
+		"ADB_PATH": "adb",
+		"ADB_TCPIP": "192.168.0.100:5555"
+	},
+	"commons": 
+	{
+		"Random\\Srand": 
+		{
+			"base": 10,
+			"offset": 5
+		}
+	},
+	"games": 
+	{
+		"SGS": 
+		{
+			"Random\\Srand": 
+			{
+				"base": 15
+			}
+		},
+		"PS": 
+		{
+			"Random\\Srand": 
+			{
+				"base": 11
+			}
+		}
+	},
+	"actions": 
+	{
+		"init": 
+		[
+			
+			{
+				"class": "Common\\ConnectionTest"
+			},
+			
+			{
+				"class": "Common\\PressKey",
+				"keyevent": 3
+			}
+		],
+		"loop": 
+		[
+			
+			{
+				"class": "Common\\EchoAction",
+				"message": "Entered Loop Section"
+			},
+			
+			{
+				"class": "Common\\SleepAction",
+				"FromMS": "5000",
+				"TillMS": "6000"
+			},
+			
+			{
+				"class": "Common\\FinishAction"
+			}
+		],
+		"final": 
+		[
+			
+			{
+				"class": "@Common\\EchoAction",
+				"message": "Entered Finalization Section"
+			}
+		]
+	}
+}
