@@ -3,5 +3,5 @@ namespace AB;
 
 interface ActionInterface
 {
-    public function run(Manager $context);
+    public function run(Manager $context, array $config);
 }

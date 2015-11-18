@@ -7,16 +7,11 @@ use AB\Manager;
 class EchoAction implements ActionInterface
 {
     const CONFIG_MESSAGE = 'message';
-    private $message;
-    
-    public function __construct(Manager $context, array $config)
-    {
-        $this->message = isset($config[self::CONFIG_MESSAGE]) ? $config[self::CONFIG_MESSAGE] : 'Check point';
-    }
 
-    public function run(Manager $context)
+    public function run(Manager $context, array $config)
     {
-        $context->logger->info($this->message);
+        $context->logger->info(isset($config[self::CONFIG_MESSAGE]) ? $config[self::CONFIG_MESSAGE] : 'Check point');
+        return Manager::RET_LOOP;
     }
 }
 

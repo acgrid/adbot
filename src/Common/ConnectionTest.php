@@ -8,7 +8,7 @@ use AB\ADB\ADBCmd;
 class ConnectionTest implements ActionInterface
 {
 
-    public function run(Manager $context)
+    public function run(Manager $context, array $config)
     {
         $adb = ADBCmd::instance($context);
         $adb->connect();

@@ -43,10 +43,6 @@
 			{
 				"class": "Common\\PressKey",
 				"keyevent": 3
-			},
-			
-			{
-				"class": "Common\\ResolutionCheck"
 			}
 		],
 		"loop": 
@@ -58,8 +54,14 @@
 			},
 			
 			{
+				"class": "Common\\SleepAction",
+				"FromMS": "5000",
+				"TillMS": "6000"
+			},
+			
+			{
 				"class": "Common\\FinishAction",
-				"count": 1
+				"count": 3
 			}
 		],
 		"final": 

@@ -8,7 +8,7 @@ use AB\OCR\ScreenFacade;
 class ResolutionCheck implements ActionInterface
 {
 
-    public function run(Manager $context)
+    public function run(Manager $context, array $config)
     {
         $scr = ScreenFacade::instance($context);
         list($x, $y) = $scr->capture('init')->xy;

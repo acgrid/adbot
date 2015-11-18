@@ -103,16 +103,16 @@ final class Manager
         if(!isset($action['class'])) throw new \InvalidArgumentException("Action without class name encountered.");
         $newInstance = substr($action['class'], 0, 1) === '@';
         $className = __NAMESPACE__ . '\\' . ($newInstance ? substr($action['class'], 1) : $action['class']);
+        unset($action['class']);
         if($newInstance || !isset($this->persistObjects[$className])){
             if(!class_exists($className, true)) throw new \InvalidArgumentException("Class '$className' does not exist.");
-            unset($action['class']);
             $actionObject = new $className($this, $action);
             if(!($actionObject instanceof ActionInterface)) throw new \InvalidArgumentException("Class '$className' does not implement ActionInterface");
             if(!$newInstance) $this->persistObjects[$className] = $actionObject;
         }else{
             $actionObject = $this->persistObjects[$className];
         }
-        return $actionObject->run($this);
+        return $actionObject->run($this, $action);
     }
 
     public function start()

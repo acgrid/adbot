@@ -53,8 +53,10 @@ class ADBCmd extends CommandLine implements ServiceInterface
     
     public function screenshot($filename)
     {
-        $this->execHost("shell screencap -p | sed 's/\r$//' > %s", $filename);
+        $this->execHost("shell screencap -p");
         if($this->returnCode === 0){
+            $this->output = str_replace("\x0D\x0D\x0A", "\x0A", $this->output);
+            file_put_contents($filename, $this->output);
             $this->logger->info('Screenshot OK');
             return true;
         }else{

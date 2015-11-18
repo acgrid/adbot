@@ -8,22 +8,17 @@ class SleepAction implements ActionInterface
 {
     const CONFIG_FROM_MS = 'FromMS';
     const CONFIG_TILL_MS = 'TillMS';
-    private $fromMS;
-    private $tillMS;
     
-    public function __construct(Manager $context, array $config)
-    {
-        $this->fromMS = isset($config[self::CONFIG_FROM_MS]) ? $config[self::CONFIG_FROM_MS] : 1000;
-        $this->tillMS = isset($config[self::CONFIG_TILL_MS]) ? $config[self::CONFIG_TILL_MS] : 2000;
-    }
-    
-    public function run(Manager $context)
+    public function run(Manager $context, array $config)
     {
         /**
          * @var AB\Random\Delay;
          */
         $delay = $context->getService('Common', 'Random\\Delay');
-        $delay->delayBoundaryRandom($this->fromMS, $this->tillMS);
+        $delay->delayBoundaryRandom(
+            isset($config[self::CONFIG_FROM_MS]) ? $config[self::CONFIG_FROM_MS] : 1000,
+            isset($config[self::CONFIG_TILL_MS]) ? $config[self::CONFIG_TILL_MS] : 2000);
+        return Manager::RET_LOOP;
     }
 }
 
