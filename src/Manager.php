@@ -70,9 +70,13 @@ final class Manager
 
     public function getService($game, $class)
     {
+        if($posSlash = strrpos($game, '\\')) $game = substr($game, $posSlash + 1);
         if(!isset($this->serviceObjects[$game][$class])){
             $realClass = __NAMESPACE__ . '\\' . $class;
-            if(!class_exists($realClass, true)) throw new \InvalidArgumentException("Class $class does not exist.");
+            if(!class_exists($realClass, true)){
+                $realClass = __NAMESPACE__ . "\\$game\\$class";
+                if(!class_exists($realClass, true)) throw new \InvalidArgumentException("Class $class does not exist.");
+            }
             if(isset($this->services[$game]) && isset($this->services[$game][$class])){
                 $this->serviceObjects[$game][$class] = new $realClass($this, $this->services[$game][$class]);
             }else{ // default instance
@@ -80,6 +84,11 @@ final class Manager
             }
         }
         return $this->serviceObjects[$game][$class];
+    }
+    
+    public function getGameBase($game)
+    {
+        return $this->getService($game, 'Base');
     }
 
     public function getConstant($name, $default = null)

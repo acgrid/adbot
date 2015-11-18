@@ -67,7 +67,7 @@ class ADBCmd extends CommandLine implements ServiceInterface
     
     public function stopActivity($packageName)
     {
-        $this->execHost('shell am stop %s', $packageName);
+        $this->execHost('shell am force-stop %s', $packageName);
         if($this->returnCode === 0){
             $this->logger->info('Stop activity OK');
             return true;

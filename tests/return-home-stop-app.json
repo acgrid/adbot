@@ -18,6 +18,10 @@
 	{
 		"SGS": 
 		{
+			"Base": 
+			{
+				"package": "com.square_enix.ocsd.magical"
+			},
 			"Random\\Srand": 
 			{
 				"base": 15
@@ -41,11 +45,6 @@
 			},
 			
 			{
-				"class": "Common\\PressKey",
-				"keyevent": 3
-			},
-			
-			{
 				"class": "Common\\ResolutionCheck"
 			}
 		],
@@ -53,8 +52,7 @@
 		[
 			
 			{
-				"class": "Common\\EchoAction",
-				"message": "Do something interesting"
+				"class": "SGS\\CleanReturn"
 			},
 			
 			{

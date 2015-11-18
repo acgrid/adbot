@@ -8,6 +8,8 @@ use AB\ADB\ADBCmd;
 class PressKey implements ActionInterface
 {
     const CONFIG_EVENTCODE = 'keyevent';
+    
+    const CODE_HOMEKEY = 3;
 
     public function run(Manager $context, array $config)
     {
