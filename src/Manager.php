@@ -2,7 +2,6 @@
 namespace AB;
 
 use AB\Logger\Logger;
-use AB\ADB\ADBCmd;
 
 /**
  * @property-read AB\Logger\Logger $logger
