@@ -63,14 +63,14 @@ final class Manager
     {
         $special = $special + $common;
         foreach(array_keys($special) as $key){
-            if(is_array($special[$key]) && is_array($common[$key])) $special[$key] = $this->mergeArray($special[$key], $common[$key]);
+            if(isset($special[$key]) && isset($common[$key]) && is_array($special[$key]) && is_array($common[$key])) $special[$key] = $this->mergeArray($special[$key], $common[$key]);
         }
         return $special;
     }
 
     public function getService($game, $class)
     {
-        if($posSlash = strrpos($game, '\\')) $game = substr($game, $posSlash + 1);
+        if(($posSlash = strrpos($game, '\\')) !== false) $game = substr($game, $posSlash + 1);
         if(!isset($this->serviceObjects[$game][$class])){
             $realClass = __NAMESPACE__ . '\\' . $class;
             if(!class_exists($realClass, true)){
