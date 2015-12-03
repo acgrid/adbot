@@ -29,7 +29,7 @@ $logger = new Logger('main');
 $logger->pushHandler(new StreamHandler(sprintf('%s/log/%s.log', __DIR__, date('Ymd-His')), Logger::DEBUG));
 $logger->pushHandler(new StreamHandler('php://output', $log_level));
 try{
-    if(!isset($argv[++$opt_num])) throw new \InvalidArgumentException(sprintf("Usage: %s [-v[v|vv]|--verbose [debug|info]] CONFIGFILE.json", $argv[0]));
+    if(!isset($argv[++$opt_num])) throw new \InvalidArgumentException(sprintf("Usage: %s [-v[v|vv]|--verbose [debug|info]] CONFIG.json", $argv[0]));
     $config_file = $argv[$opt_num];
     if(!is_readable($config_file)) throw new \RuntimeException("Config file is not readable.");
     $config = json_decode(file_get_contents($config_file), true);

@@ -86,7 +86,6 @@ final class Manager
         return $this->serviceObjects[$game][$class];
     }
 
-
     /**
      * @param $game
      * @return mixed
@@ -166,7 +165,7 @@ final class Manager
             }
         }
         if(isset($this->actions[self::ACTION_FINAL])){
-            $this->logger->notice('Running finaliztion actions.');
+            $this->logger->notice('Running finalization actions.');
             foreach($this->actions[self::ACTION_FINAL] as $action){
                 do{
                     $result = $this->doAction($action);
@@ -193,7 +192,7 @@ final class Manager
             self::CFG_TITLE,
             self::CFG_VERSION
         ] as $cfg_key){
-            if(!isset($config[$cfg_key])) throw new \InvalidArgumentException("Error: missing configuration main item '{$cfg_key}'.");
+            if(!isset($config[$cfg_key])) throw new \InvalidArgumentException("Error: Missing mandatory configuration item '{$cfg_key}'.");
         }
         $logger->info("Preparing for script '%s' version %s.", [$config[self::CFG_TITLE], $config[self::CFG_VERSION]]);
         return (new self($config, $logger))->start();
