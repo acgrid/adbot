@@ -8,7 +8,7 @@ class CommandLine
     public $returnCode;
     public $output;
     /**
-     * @var AB\Logger\Logger
+     * @var \AB\Logger\Logger
      */
     protected $logger;
     
@@ -19,7 +19,7 @@ class CommandLine
     
     public function exec($cmd)
     {
-        $this->logger->info('CMD %s', [$cmd]);
+        $this->logger->info('SHELL %s', [$cmd]);
         ob_start();
         passthru($cmd, $this->returnCode);
         $this->output = ob_get_clean();
@@ -27,7 +27,7 @@ class CommandLine
     
     public function execFormat($cmd, ...$params)
     {
-        $this->logger->debug("Building command %s with %s", [$cmd, var_export($params, true)]);
+        $this->logger->debug("Building command %s with %s", [$cmd, join(',', $params)]);
         $cmd = vsprintf($cmd, array_map('escapeshellarg', $params));
         $this->exec($cmd);
     }

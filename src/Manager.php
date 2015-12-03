@@ -4,7 +4,7 @@ namespace AB;
 use AB\Logger\Logger;
 
 /**
- * @property-read AB\Logger\Logger $logger
+ * @property-read \AB\Logger\Logger $logger
  * @property-read string $path
  * @author acgrid
  *
@@ -56,6 +56,7 @@ final class Manager
             static $path;
             return isset($path) ? $path : ($path = dirname(__DIR__));
         }
+        return null;
     }
     
     protected function mergeArray(array $special, array &$common)
@@ -84,7 +85,12 @@ final class Manager
         }
         return $this->serviceObjects[$game][$class];
     }
-    
+
+
+    /**
+     * @param $game
+     * @return mixed
+     */
     public function getGameBase($game)
     {
         return $this->getService($game, 'Base');

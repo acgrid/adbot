@@ -59,6 +59,7 @@ class ScreenFacade implements ServiceInterface
             case 'x': return $this->x;
             case 'y': return $this->y;
             case 'rotate': return $this->x >= $this->y ? self::ROTATE_L : self::ROTATE_P;
+            default: return null;
         }
     }
     
@@ -130,6 +131,13 @@ class ScreenFacade implements ServiceInterface
         }
     }
     
+    public function load($filename)
+    {
+        $this->currentImage = imagecreatefrompng($filename);
+        if(!is_resource($this->currentImage)) throw new \InvalidArgumentException("$filename is not an valid PNG file!");
+        return $this;
+    }
+    
     public function getColor($x, $y)
     {
         if(!is_resource($this->currentImage)) throw new \BadMethodCallException("No image present now.");
@@ -161,8 +169,14 @@ class ScreenFacade implements ServiceInterface
     {
         foreach($dotsArray as $color => $dots){
             foreach($dots as $dot){
-                ADBCmd::assertPoint($dot);
-                if(!$this->compareRGB($dot[ADBCmd::CONST_X], $dot[ADBCmd::CONST_Y], $color, $tol)) return false;
+                try{
+                    ADBCmd::assertPoint($dot);
+                    if(!$this->compareRGB($dot[ADBCmd::CONST_X], $dot[ADBCmd::CONST_Y], $color, $tol)) return false;
+                }catch(\InvalidArgumentException $e){
+                    ADBCmd::assertRect($dot);
+                    if(!$this->compareRGB($dot[ADBCmd::CONST_X1], $dot[ADBCmd::CONST_Y1], $color, $tol) ||
+                       !$this->compareRGB($dot[ADBCmd::CONST_X2], $dot[ADBCmd::CONST_Y2], $color, $tol)) return false;
+                }
             }
         }
         return true;
@@ -184,7 +198,7 @@ class ScreenFacade implements ServiceInterface
         $result = $this->ocrAbs($font['J'], $color, $tol, $fromX, $fromY, $toX, $toY) ? $font['T'] : $font['F']; // TODO relative value
         if(is_int($result) || is_string($result)) return intval($result);
         if(is_null($result)) return null;
-        return $this->ocrOnce($result, $color, $fromX, $fromY, $toX, $toY);
+        return $this->ocrOnce($result, $color, $tol, $fromX, $fromY, $toX, $toY);
     }
     
     /**
