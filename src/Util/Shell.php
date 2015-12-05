@@ -1,30 +1,43 @@
 <?php
-namespace AB\ADB;
+/**
+ * Created by PhpStorm.
+ * User: acgrid
+ * Date: 2015/12/4
+ * Time: 11:19
+ */
 
-use AB\Manager;
+namespace AB\Util;
 
-class CommandLine
+
+use AB\Logger;
+
+/**
+ * Class Shell
+ * @package AB\Util
+ */
+class Shell
 {
     public $returnCode;
     public $output;
+
     /**
-     * @var \AB\Logger\Logger
+     * @var Logger
      */
-    protected $logger;
-    
-    public function __construct(Manager $context)
+    private $logger;
+
+    public function __construct(Logger $logger)
     {
-        $this->logger = $context->logger;
+        $this->logger = $logger;
     }
-    
+
     public function exec($cmd)
     {
-        $this->logger->info('SHELL %s', [$cmd]);
+        $this->logger->notice('SHELL %s', [$cmd]);
         ob_start();
         passthru($cmd, $this->returnCode);
         $this->output = ob_get_clean();
     }
-    
+
     public function execFormat($cmd, ...$params)
     {
         $this->logger->debug("Building command %s with %s", [$cmd, join(',', $params)]);
@@ -32,5 +45,3 @@ class CommandLine
         $this->exec($cmd);
     }
 }
-
-?>

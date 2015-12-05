@@ -1,10 +1,7 @@
 <?php
-/**
- * @var $argv array
- */
+
 namespace AB;
 
-use AB\Logger\Logger;
 use Monolog\Handler\StreamHandler;
      
 if(PHP_SAPI !== 'cli') exit("Run this script in console.");

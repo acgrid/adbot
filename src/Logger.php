@@ -1,5 +1,5 @@
 <?php
-namespace AB\Logger;
+namespace AB;
 
 use Monolog\Logger as MonoLogger;
 
