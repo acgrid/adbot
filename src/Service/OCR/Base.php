@@ -15,7 +15,7 @@ use AB\Service\IService;
 use AB\Service\Position;
 use AB\Service\Screen;
 
-abstract class Base extends BaseService implements IService
+abstract class Base extends BaseService
 {
     const CFG_RULES = 'rules';
     const CFG_COLOR = 'color';
@@ -53,7 +53,7 @@ abstract class Base extends BaseService implements IService
     {
         parent::__construct($manager, $config);
         $this->screen = Screen::instance($manager, $this->app);
-        if(isset($config[self::CFG_RULES]) && is_array($config[self::CFG_RULES])) $this->setRules($config[self::CFG_RULES]);
+        if(isset($config[self::CFG_RULES])) $this->setRules($config[self::CFG_RULES]);
         $this->setDefaultConfig($config);
 
     }
@@ -65,9 +65,8 @@ abstract class Base extends BaseService implements IService
         return $value;
     }
 
-    public static function checkRule(&$rule)
+    public static function checkRule(array &$rule)
     {
-        if(!is_array($rule)) throw new \InvalidArgumentException('OCR Rule entry is not array.');
         if(!isset($rule[self::RULE_JUDGE]) || !is_array($rule[self::RULE_JUDGE])) throw new \InvalidArgumentException('OCR Rule lacks judgement or is not array.');
         foreach($rule[self::RULE_JUDGE] as &$point) Position::assertPoint($point);
         if(!isset($rule[self::RULE_TRUE])) throw new \InvalidArgumentException('OCR Rule lacks true decision.');
@@ -175,7 +174,7 @@ abstract class Base extends BaseService implements IService
         return $this->ocrChar($result, $rect);
     }
 
-    public function ocr($rule, array &$rect, $override = [])
+    public function ocr($rule, array &$rect, array $override = [])
     {
         if(!isset($this->rules[$rule])) throw new \InvalidArgumentException("Undefined OCR rule '$rule'.");
         $this->screen->translateRect($rect);

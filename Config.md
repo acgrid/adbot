@@ -217,7 +217,7 @@ The `T` and `F` keys contain either another tree, or scale `string` as OCR resul
 #### OCR decision trees array
 Just an associated array.
 
-`["rule-name": OCRTreeObject]`
+`{"rule-name-1": OCRTreeObject, "rule-name-2": OCRTreeObject}`
 
 #### OCR area
 The OCR area is expressed by rectangle JSON with a special rule.
