@@ -35,6 +35,8 @@ class LoadImage extends BaseAction
         if(!is_readable($filename)) throw new \RuntimeException("Image '$filename' is unable to read.");
         try{
             $this->screen->load($filename, $orientation);
+            $this->logger->info('Screen info: %uX%u mode %s, rotate fix is %s.',
+                [$this->screen->width, $this->screen->height, $this->screen->orientation, $this->screen->rotateFix ? 'On' : 'Off']);
             return Manager::RET_LOOP;
         }catch(\Exception $e){
             $this->logger->error("Image '$filename' is corrupt or not a PNG file.");

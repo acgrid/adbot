@@ -36,6 +36,8 @@ class Screen extends BaseService
     const COLOR_B = 'B';
     const COLOR_D = 'D';
 
+    const REGEXP_COLOR = '/([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})(?::?(\d+))?/i';
+
     /**
      * @var ADB
      */
@@ -129,7 +131,7 @@ class Screen extends BaseService
         }
     }
 
-    public function translatePoint(array &$point, $width = null, $height = null)
+    public function translateRotatedPoint(array &$point)
     {
         Position::assertPoint($point);
         if($this->rotateFix){
@@ -137,17 +139,24 @@ class Screen extends BaseService
             $point[Position::Y] = $point[Position::X] - $point[Position::Y];
             $point[Position::X] = $point[Position::X] - $point[Position::Y];
         }
-        // Process for relative value point
+        return $this;
+    }
+
+    public function translatePoint(array &$point, $width = null, $height = null)
+    {
+        Position::assertPoint($point);
         if($point[Position::X] < 1 && $point[Position::Y] < 1){
-            $point[Position::X] *= $width ?: $this->width;
-            $point[Position::Y] *= $height ?: $this->height;
+            if(!$width && !$this->width) throw new \InvalidArgumentException('Screen is not initialized, capture or load an image first.');
+            $point[Position::X] = intval($point[Position::X] * ($width ?: $this->width));
+            $point[Position::Y] = intval($point[Position::Y] * ($height ?: $this->height));
         }
-        return $point;
+        return $this;
     }
 
     public function getPoint(array $point)
     {
-        return $this->translatePoint($point);
+        $this->translatePoint($point);
+        return $point;
     }
 
     public function translateRect(array &$rect)
@@ -158,12 +167,13 @@ class Screen extends BaseService
         $rect[Position::Y1] = $P1[Position::Y];
         $rect[Position::X2] = $P2[Position::X];
         $rect[Position::Y2] = $P2[Position::Y];
-        return $rect;
+        return $this;
     }
 
     public function getRect(array $rect)
     {
-        return $this->translateRect($rect);
+        $this->translateRect($rect);
+        return $rect;
     }
 
     public function getColor($x, $y)
@@ -183,10 +193,15 @@ class Screen extends BaseService
         static $cache;
         if(!isset($cache)) $cache = [];
         if(isset($cache[$color])) return $cache[$color];
-        if(!preg_match('/([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})(?::?(\d+))?/i', $color, $match)) throw new \InvalidArgumentException("Invalid color notation '$color'.");
-        $cache[$color] = [self::COLOR_R => hexdec($match[1]), self::COLOR_G => hexdec($match[2]), self::COLOR_B => $match[3]];
+        if(!preg_match(self::REGEXP_COLOR, $color, $match)) throw new \InvalidArgumentException("Invalid color notation '$color'.");
+        $cache[$color] = [self::COLOR_R => hexdec($match[1]), self::COLOR_G => hexdec($match[2]), self::COLOR_B => hexdec($match[3])];
         $cache[$color][self::COLOR_D] = isset($match[4]) ? intval($match[4]) : $this->defaultDistance;
         return $cache[$color];
+    }
+
+    public static function colorToHTML(array &$color)
+    {
+        return sprintf('#%X%X%X', $color[self::COLOR_R], $color[self::COLOR_G], $color[self::COLOR_B]);
     }
 
     /**
@@ -199,12 +214,21 @@ class Screen extends BaseService
      */
     public function compare($x, $y, $color)
     {
-        $testColor = self::parseColor($color);
+        $testColor = $this->parseColor($color);
         $imageColor = $this->getColorRGB($x, $y);
-        return sqrt(
-            ($imageColor[self::COLOR_R] - $testColor[self::COLOR_R]) ^ 2 +
-            ($imageColor[self::COLOR_G] - $testColor[self::COLOR_G]) ^ 2 +
-            ($imageColor[self::COLOR_B] - $testColor[self::COLOR_B]) ^ 2) < $testColor[self::COLOR_D];
+        $this->logger->debug('Color comparison at %u*%u, actual=%s, expected=%s, tolerance=%u',
+            [$x, $y, self::colorToHTML($imageColor), self::colorToHTML($testColor), $testColor[self::COLOR_D]]);
+        if($testColor[self::COLOR_D]){
+            return sqrt(
+                ($imageColor[self::COLOR_R] - $testColor[self::COLOR_R]) ^ 2 +
+                ($imageColor[self::COLOR_G] - $testColor[self::COLOR_G]) ^ 2 +
+                ($imageColor[self::COLOR_B] - $testColor[self::COLOR_B]) ^ 2) < $testColor[self::COLOR_D];
+        }else{
+
+            return $imageColor[self::COLOR_R] == $testColor[self::COLOR_R] &&
+            $imageColor[self::COLOR_G] == $testColor[self::COLOR_G] &&
+            $imageColor[self::COLOR_B] == $testColor[self::COLOR_B];
+        }
     }
 
     /**
@@ -216,7 +240,8 @@ class Screen extends BaseService
      */
     public function comparePoint(&$point, $color)
     {
-        self::translatePoint($point);
+        $this->logger->debug('Request virtual dot comparison at %.3f*%.3f', [$point[Position::X], $point[Position::Y]]);
+        $this->translatePoint($point)->translateRotatedPoint($point);
         return $this->compare($point[Position::X], $point[Position::Y], $color);
     }
 
@@ -249,7 +274,7 @@ class Screen extends BaseService
     public static function assertRules(array $rules)
     {
         foreach($rules as $color => $positions){
-            self::parseColor($color);
+            if(!preg_match(self::REGEXP_COLOR, $color)) throw new \InvalidArgumentException("Invalid color notation '$color'.");
             if(!is_array($positions)) throw new \InvalidArgumentException('Points array in rule entry does not exist.');
             foreach($positions as $position){
                 try{
