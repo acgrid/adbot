@@ -235,7 +235,8 @@ final class Manager
     {
         if(strpos($class, self::$actionNamespace) === 0) $class = substr($class, strlen(self::$actionNamespace));
         if($temporary || !isset($this->componentObjects[$app][$class])){
-            $config = isset($this->components[$app]) && isset($this->components[$app][$class]) ? $this->components[$app][$class] : [];
+            $config = isset($this->components[$app]) && isset($this->components[$app][$class]) ? $this->components[$app][$class] :
+                (isset($this->components[self::COMMON][$class]) ? $this->components[self::COMMON][$class] : []);
             $config[self::RES_CONFIG_APP] = $app;
             if(($realClass = self::getActionClassName($app, $class)) || ($realClass = self::getActionClassName(self::COMMON, $class))){
                 $component = new $realClass($this, $config);

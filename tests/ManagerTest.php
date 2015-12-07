@@ -8,6 +8,8 @@
 
 namespace AB;
 
+use AB\Action\Common\TestAction;
+use AB\Action\TestApp\TestAction as AppTestAction;
 use AB\Service\Test;
 use Monolog\Handler\StreamHandler;
 
@@ -17,6 +19,7 @@ class ManagerTest extends \PHPUnit_Framework_TestCase
     const NS_APP = 'TestApp';
 
     const TEST_SERVICE = 'Test';
+    const TEST_ACTION = 'TestAction';
     /**
      * @var Logger
      */
@@ -137,7 +140,47 @@ class ManagerTest extends \PHPUnit_Framework_TestCase
      */
     public function testComponent()
     {
-
+        /**
+         * @var TestAction $action
+         */
+        $this->configSkeleton[Manager::CFG_TITLE] = 'Dummy configuration for components test.';
+        $this->configSkeleton[Manager::CFG_COMPONENTS][Manager::COMMON][self::TEST_ACTION] = [];
+        // Test 1: Define common, get common
+        $manager = Manager::factory($this->configSkeleton, $this->logger);
+        $fullCommonAction = $manager->nsAction . Manager::COMMON . '\\' . self::TEST_ACTION;
+        $fullAppAction = $manager->nsAction . self::NS_APP . '\\' . self::TEST_ACTION;
+        $action = $manager->getComponent(Manager::COMMON, self::TEST_ACTION);
+        $this->assertInstanceOf($fullCommonAction, $action);
+        $action->run();
+        $this->assertSame(TestAction::DEFAULT_VALUE, $action->test);
+        $message = 'foo';
+        $action->run([TestAction::CFG_TEST => $message]);
+        $this->assertSame($message, $action->test);
+        // Test 2: Define common, get app
+        $action = $manager->getComponent(self::NS_APP, self::TEST_ACTION);
+        $this->assertInstanceOf($fullAppAction, $action);
+        $action->run();
+        $this->assertSame(AppTestAction::DEFAULT_VALUE, $action->test);
+        // Test 2.5: constructor passing
+        $message = 'init-common';
+        $this->configSkeleton[Manager::CFG_COMPONENTS][Manager::COMMON][self::TEST_ACTION] = [TestAction::CFG_TEST => $message];
+        $manager = Manager::factory($this->configSkeleton, $this->logger);
+        $action = $manager->getComponent(self::NS_APP, self::TEST_ACTION);
+        $action->run();
+        $this->assertSame($message, $action->test);
+        // Test 3: Define app, get common
+        $message = 'init-app';
+        $this->configSkeleton[Manager::CFG_COMPONENTS][self::NS_APP][self::TEST_ACTION] = [TestAction::CFG_TEST => $message];
+        $manager = Manager::factory($this->configSkeleton, $this->logger);
+        $action = $manager->getComponent(Manager::COMMON, self::TEST_ACTION);
+        $this->assertSame(TestAction::DEFAULT_VALUE, $action::DEFAULT_VALUE);
+        $action = $manager->getComponent(self::NS_APP, self::TEST_ACTION);
+        $action->run();
+        $this->assertSame($message, $action->test);
+        // Test 4: Define app, get app by full qualified class name
+        $this->assertSame($action, $manager->getComponent(self::NS_APP, self::TEST_ACTION));
+        // Test 5: Temporary object
+        $this->assertNotSame($action, $manager->getComponent(self::NS_APP, self::TEST_ACTION, true));
     }
 
     /**
