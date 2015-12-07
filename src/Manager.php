@@ -57,6 +57,7 @@ final class Manager
      * Namespace and JSON key for common and fail back use
      */
     const COMMON = 'Common';
+    const BASE = 'Base';
     const NS_SERVICE = 'Service';
     const NS_ACTION = 'Action';
 
@@ -228,6 +229,11 @@ final class Manager
         if(isset(self::$componentClassNameCache[$relativeClass])) return self::$componentClassNameCache[$relativeClass];
         $realClass = self::$actionNamespace . $relativeClass;
         return self::$componentClassNameCache[$relativeClass] = class_exists($realClass, true) ? $realClass : false;
+    }
+
+    public function getBaseComponentConfig($app)
+    {
+        return isset($this->components[$app][self::BASE]) ? $this->components[$app][self::BASE] : [];
     }
 
     public function getComponent($app, $class, $temporary = false)

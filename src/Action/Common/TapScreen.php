@@ -57,7 +57,11 @@ class TapScreen extends BaseAction
         $this->logger->info('Tap screen for %u point(s) with delay %u-%u ms.', [$count, $delay, $delayOffset]);
         $retryLimit = Manager::readConfig($context, Manager::RES_CONFIG_RETRY, self::DEFAULT_RETRY);
         foreach($rectangles as $rectangle){
-            $point = $this->position->getPointInRect($this->scr->translateRect($rectangle));
+            var_dump($rectangle);
+            $this->scr->translateRect($rectangle);
+            var_dump($rectangle);
+            $point = $this->position->getPointInRect($rectangle);
+            var_dump($point);
             $retry = 0;
             while(!$this->adb->tapPoint($point)){
                 if(++$retry > $retryLimit){

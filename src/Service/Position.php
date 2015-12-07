@@ -62,6 +62,18 @@ class Position extends BaseService
         if(!isset($rect[self::X1]) || !isset($rect[self::Y1]) || !isset($rect[self::X2]) || !isset($rect[self::Y2])) throw new \InvalidArgumentException('The JSON for a rectangle must be {X1: x1, Y1: y1, X2: x2, Y2: y2}.');
     }
 
+    public static function assertAbsPoint(array &$point)
+    {
+        self::assertPoint($point);
+        if($point[self::X] < 1 || $point[self::Y] < 1) throw new \InvalidArgumentException('This point is on relative axis. Absolute value is required.');
+    }
+
+    public static function assertAbsRect(array $rect)
+    {
+        self::assertRect($rect);
+        if($rect[self::X1] < 1 || $rect[self::X2] < 1 || $rect[self::Y1] < 1 || $rect[self::Y2] < 1) throw new \InvalidArgumentException('This rectangle is on relative axis. Absolute value is required.');
+    }
+
     public static function isStrictRect(array &$rect)
     {
         self::assertRect($rect);

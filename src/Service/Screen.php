@@ -19,7 +19,8 @@ use AB\Manager;
  * @property-read integer $y
  * @property-read integer $width
  * @property-read integer $height
- * @property-read integer $orientation
+ * @property-read string $orientation
+ * @property-read bool $rotateFix
  */
 class Screen extends BaseService
 {
@@ -75,6 +76,7 @@ class Screen extends BaseService
             case 'orientation':
             case 'width':
             case 'height':
+            case 'rotateFix':
                 return $this->$name;
             default:
                 return null;
@@ -83,7 +85,7 @@ class Screen extends BaseService
 
     public function setOrientation($mode)
     {
-        if($mode != self::PORTRAIT || $mode != self::LANDSCAPE) throw new \InvalidArgumentException("Invalid orientation mode '$mode'.'");
+        if($mode != self::PORTRAIT && $mode != self::LANDSCAPE) throw new \InvalidArgumentException("Invalid orientation mode '$mode'.'");
         $this->orientation = $mode;
     }
 
@@ -96,7 +98,7 @@ class Screen extends BaseService
         if($orientation == self::AUTO){
             $this->orientation = $imageOrientation;
         }else{
-            $this->orientation = $this->setOrientation($orientation);
+            $this->setOrientation($orientation);
             $this->rotateFix = $orientation != $imageOrientation;
         }
         if($this->rotateFix){
@@ -117,7 +119,7 @@ class Screen extends BaseService
 
     public function capture($name = '', $orientation = self::AUTO)
     {
-        $filename = date('Ymd-His') . preg_replace('/[^0-9a-z]+/', '_', $name) . ".png";
+        $filename = date('Ymd-His') . '-' . preg_replace('/[^0-9a-z]+/i', '_', $name) . ".png";
         if($this->adb->screenshot($this->savePath . $filename)){
             $this->gd = imagecreatefromstring($this->adb->shell->output);
             $this->init($orientation);
@@ -152,7 +154,11 @@ class Screen extends BaseService
     {
         Position::assertRect($rect);
         list($P1, $P2) = array_map([$this, 'getPoint'], Position::getRectVertex($rect));
-        return Position::makeRectByVertex($P1, $P2);
+        $rect[Position::X1] = $P1[Position::X];
+        $rect[Position::Y1] = $P1[Position::Y];
+        $rect[Position::X2] = $P2[Position::X];
+        $rect[Position::Y2] = $P2[Position::Y];
+        return $rect;
     }
 
     public function getRect(array $rect)

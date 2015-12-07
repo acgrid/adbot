@@ -28,9 +28,10 @@ class InitScreen extends BaseAction
     {
         try{
             $this->screen->capture('INIT', Manager::readConfig($context, self::CFG_ORIENTATION, $this->defaultOrientation));
-            $this->logger->info('Screen info: %uX%u mode %s, rotate fix is %s.');
+            $this->logger->info('Screen info: %uX%u mode %s, rotate fix is %s.',
+                [$this->screen->width, $this->screen->height, $this->screen->orientation, $this->screen->rotateFix ? 'On' : 'Off']);
             return Manager::RET_LOOP;
-        }catch(\Exception $e){
+        }catch(\RuntimeException $e){
             return $this->errorReturnCode;
         }
     }

@@ -172,10 +172,12 @@ class ManagerTest extends \PHPUnit_Framework_TestCase
         $this->assertSame($message, $action->test);
         // Test 3: Define app, get common
         $message = 'init-app';
+        $this->configSkeleton[Manager::CFG_COMPONENTS][self::NS_APP][Manager::BASE] = [TestAction::CFG_TEST => $message];
         $this->configSkeleton[Manager::CFG_COMPONENTS][self::NS_APP][self::TEST_ACTION] = [TestAction::CFG_TEST => $message];
         $manager = Manager::factory($this->configSkeleton, $this->logger);
         $action = $manager->getComponent(Manager::COMMON, self::TEST_ACTION);
         $this->assertSame(TestAction::DEFAULT_VALUE, $action::DEFAULT_VALUE);
+        $this->assertSame([TestAction::CFG_TEST => $message], $manager->getBaseComponentConfig(self::NS_APP));
         $action = $manager->getComponent(self::NS_APP, self::TEST_ACTION);
         $action->run();
         $this->assertSame($message, $action->test);

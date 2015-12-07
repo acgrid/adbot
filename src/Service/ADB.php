@@ -49,20 +49,20 @@ class ADB extends BaseService
         $this->logger->error("$log perhaps failed. Return code %u, message: %s.", [$this->shell->returnCode, $this->shell->output]);
     }
 
-    public function exec($cmd)
+    public function exec($cmd, ...$param)
     {
-        $this->shell->exec(escapeshellarg($this->adb) . ' ' . $cmd);
+        $this->shell->execFormat(escapeshellarg($this->adb) . ' ' . $cmd, ...$param);
     }
 
     public function execHost($cmd, ...$param)
     {
         array_unshift($param, $this->host);
-        $this->shell->execFormat("-s %s $cmd", ...$param);
+        $this->exec("-s %s $cmd", ...$param);
     }
 
     public function connect()
     {
-        $this->shell->execFormat('connect %s', $this->host);
+        $this->exec('connect %s', $this->host);
     }
 
     public function screenshot($filename)
@@ -99,6 +99,7 @@ class ADB extends BaseService
             return true;
         }else{
             $this->logError('Sending keyboard event');
+            return false;
         }
     }
 

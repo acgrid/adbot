@@ -22,7 +22,8 @@ abstract class AppAction extends BaseAction
     public function __construct(Manager $manager, array $config)
     {
         parent::__construct($manager, $config);
-        $this->package = Manager::readConfig($config, self::CFG_PACKAGE_NAME, '');
+        $config = $config + $manager->getBaseComponentConfig($this->app);
+        $this->package = Manager::readConfig($config, self::CFG_PACKAGE_NAME);
 
         $this->adb = ADB::instance($manager, $this->app);
     }
