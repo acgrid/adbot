@@ -9,6 +9,8 @@ use AB\Action\IAction;
  * @package AB
  * @property-read Logger $logger
  * @property-read string $path
+ * @property-read string $nsService
+ * @property-read string $nsAction
  * @author acgrid
  */
 final class Manager
@@ -49,8 +51,6 @@ final class Manager
     const CFG_CONST = 'constants';
     const CFG_SERVICE = 'services';
     const CFG_COMPONENTS = 'components';
-    const CFG_COMM = 'commons';
-    const CFG_GAMES = 'games';
     const CFG_ACTIONS = 'actions';
 
     /**
@@ -88,7 +88,7 @@ final class Manager
     private static $serviceNamespace;
     private static $actionNamespace;
 
-    private function __construct(array $config, Logger $logger)
+    private function __construct(array &$config, Logger $logger)
     {
         $this->CONFIG = $config;
         $this->constants = $config[self::CFG_CONST];
@@ -108,30 +108,46 @@ final class Manager
             static $path;
             return isset($path) ? $path : ($path = dirname(__DIR__));
         }
+        if($name === 'nsService') return self::$serviceNamespace;
+        if($name === 'nsAction') return self::$actionNamespace;
         return null;
     }
 
     public static function readConfig(&$config, $key, $default = null)
     {
-        return isset($config[$key]) ? $config[$key] : $default;
+        if(isset($config[$key])) return $config[$key];
+        if(isset($default)) return $default;
+        throw new \RuntimeException("Configuration item '$key' is required.");
     }
 
     /**
-     * Read [class, method, ...constructor] array
+     * Read standard callback or [class, method, ...constructor] array
      * Return [$object, 'method']
-     * @param array $config
+     * @param callback|array $config
+     * @param string $app
      * @return callback
      */
-    public function readCallback(array $config)
+    public function readCallback($config, $app = self::COMMON)
     {
-        if(!isset($config[self::RES_CONFIG_CLASS])) throw new \InvalidArgumentException("Callback definition requires 'class' key.");
+        if(is_callable($config)) return $config;
+        if(!is_array($config) || !isset($config[self::RES_CONFIG_CLASS])) throw new \InvalidArgumentException("Callback definition requires 'class' key.");
         $class = $config[self::RES_CONFIG_CLASS];
-        $method = isset($config[self::RES_CONFIG_METHOD]) ? $config[self::RES_CONFIG_METHOD] : '__invoke';
-        unset($config[self::RES_CONFIG_CLASS]);
-        unset($config[self::RES_CONFIG_METHOD]);
         if(!class_exists($class, true)) throw new \InvalidArgumentException("Callback class $class is not found, try use full namespace.");
-        if(!method_exists($class, $method)) throw new \InvalidArgumentException("Callback method $class::$method() does not exist.");
-        return $method == '__invoke' ? new $class($this, $config) : [new $class($this, $config), $method];
+        unset($config[self::RES_CONFIG_CLASS]);
+        if(is_subclass_of($class, self::$serviceNamespace . 'IService', true) || is_subclass_of($class, self::$actionNamespace . 'IAction', true)){
+            $config[Manager::RES_CONFIG_APP] = $app;
+        }
+        $object = new $class($this, $config);
+        if(isset($config[self::RES_CONFIG_METHOD])){
+            $method = $config[self::RES_CONFIG_METHOD];
+            $callback = [$object, $method];
+            unset($config[self::RES_CONFIG_METHOD]);
+        }else{
+            $method = '__invoke';
+            $callback = $object;
+        }
+        if(!method_exists($object, $method)) throw new \InvalidArgumentException("Callback method $class::$method() does not exist.");
+        return $callback;
     }
 
 
@@ -156,7 +172,7 @@ final class Manager
     {
         if(isset($this->constants[$name])) return $this->constants[$name];
         if(isset($default)) return $default;
-        throw new \InvalidArgumentException("Undefined constant '$name' required.");
+        throw new \RuntimeException("Constant '$name' is required.");
     }
 
     public function setConstant($name, $value)
@@ -209,9 +225,10 @@ final class Manager
     protected static function getActionClassName($app, $class)
     {
         if($app != self::COMMON) $class = str_replace(self::COMMON . '\\', "$app\\", $class); // app-specific action first
-        if(isset(self::$componentClassNameCache["$app\\$class"])) return self::$componentClassNameCache["$app\\$class"];
-        $realClass = strpos($class, self::$actionNamespace) === 0 ? $class : self::$actionNamespace . $app . '\\' . $class;
-        return self::$componentClassNameCache["$app\\$class"] = class_exists($realClass, true) ? $realClass : false;
+        $relativeClass = "$app\\$class";
+        if(isset(self::$componentClassNameCache[$relativeClass])) return self::$componentClassNameCache[$relativeClass];
+        $realClass = self::$actionNamespace . $relativeClass;
+        return self::$componentClassNameCache[$relativeClass] = class_exists($realClass, true) ? $realClass : false;
     }
 
     public function getComponent($app, $class, $temporary = false)
@@ -225,13 +242,15 @@ final class Manager
                 if($temporary) return $component;
                 $this->componentObjects[$app][$class] = $component;
             }else{
-                throw new \InvalidArgumentException("Action $app\\$class can not be mapped.");
+                throw new \InvalidArgumentException("Action $class can not be mapped.");
             }
         }
         return $this->componentObjects[$app][$class];
     }
 
     /**
+     * Warning! If class itself contains namespaces, app prefix including Common must be added.
+     * Otherwise first namespace will be taken as the app identifier
      * @param $class
      * @return Action\IAction
      */
@@ -244,14 +263,14 @@ final class Manager
         return $this->getComponent($app, $class, $newInstance);
     }
     
-    protected function doAction($action)
+    protected function doAction(&$action)
     {
         $config = [];
         if(is_string($action)){
             $actionObject = $this->getAction($action);
-        }elseif(is_array($action) && isset($action['class'])){
-            $actionObject = $this->getAction($action['class']);
-            unset($action['class']);
+        }elseif(is_array($action) && isset($action[self::RES_CONFIG_CLASS])){
+            $actionObject = $this->getAction($action[self::RES_CONFIG_CLASS]);
+            unset($action[self::RES_CONFIG_CLASS]);
             $config = &$action;
         }else{
             throw new \InvalidArgumentException("Action class is not defined, either plain string or array with key 'class'.");
@@ -261,7 +280,10 @@ final class Manager
         $retryLimit = self::readConfig($config, self::RES_CONFIG_RETRY, self::ACTION_RETRY_LIMIT);
         $retryDelay = self::readConfig($config, self::RES_CONFIG_RETRY_DELAY, self::ACTION_RETRY_DELAY);
         do{
-            if($retry) usleep($retryDelay);
+            if($retry){
+                $this->logger->notice('Action %s wanted to retry, %u attempts remaining.', [$action, $retryLimit - $retry]);
+                usleep($retryDelay);
+            }
             $result = $actionObject->run($config);
         }while($result === self::RET_AGAIN && $retry < $retryLimit);
         return $result;
@@ -313,19 +335,24 @@ final class Manager
         return self::RET_LOOP;
     }
 
-    public static function run(array $config, Logger $logger)
+    public static function factory(array $config, Logger $logger)
     {
         foreach([
-            self::CFG_ACTIONS,
-            self::CFG_SERVICE,
-            self::CFG_CONST,
-            self::CFG_COMPONENTS,
-            self::CFG_TITLE,
-            self::CFG_VERSION
-        ] as $cfg_key){
+                    self::CFG_ACTIONS,
+                    self::CFG_SERVICE,
+                    self::CFG_CONST,
+                    self::CFG_COMPONENTS,
+                    self::CFG_TITLE,
+                    self::CFG_VERSION
+                ] as $cfg_key){
             if(!isset($config[$cfg_key])) throw new \InvalidArgumentException("Error: Missing mandatory configuration item '{$cfg_key}'.");
         }
         $logger->info("Loading script '%s' version %s.", [$config[self::CFG_TITLE], $config[self::CFG_VERSION]]);
-        return (new self($config, $logger))->start();
+        return new self($config, $logger);
+    }
+
+    public static function run(array $config, Logger $logger)
+    {
+        return self::factory($config, $logger)->start();
     }
 }

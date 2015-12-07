@@ -150,7 +150,7 @@ The `@` prefix in class name string or `class` value above changes the behaviour
 Some `IService` classes can take advantage of external providers.
 There is an extended syntax to the standard PHP callback notation.
 ### Static function and method
-It is defined as the same as PHP callback type.
+It is defined as the same as PHP callback type. Note that `class_name` name can not use relative namespace.
 - `'function_name'`
 - `['class_name', 'static_method_name']` 
 

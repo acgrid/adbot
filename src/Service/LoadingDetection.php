@@ -17,8 +17,10 @@ class LoadingDetection extends BaseService
     const CFG_ERROR_DIALOGS = 'dialogs';
     const CFG_LOADING_ICON = 'loading';
     const CFG_CHECK_INTERVAL = 'interval';
+    const CFG_TIMEOUT = 'timeout';
 
     const DEFAULT_INTERVAL = 1000;
+    const DEFAULT_TIMEOUT = 60000;
 
     const DIALOG_JUDGE = 'judge';
     const DIALOG_BUTTON = 'btn';
@@ -27,6 +29,7 @@ class LoadingDetection extends BaseService
     private $loading;
     private $interval;
     private $delayOffset;
+    private $timeout;
 
     /**
      * @var Screen
@@ -44,6 +47,8 @@ class LoadingDetection extends BaseService
         $this->dialogs = Manager::readConfig($config, self::CFG_ERROR_DIALOGS);
         $this->loading = Manager::readConfig($config, self::CFG_LOADING_ICON);
         $this->interval = intval(Manager::readConfig($config, self::CFG_CHECK_INTERVAL, self::DEFAULT_INTERVAL));
+        $this->timeout = intval(Manager::readConfig($config, self::CFG_TIMEOUT, self::DEFAULT_TIMEOUT));
+
         self::assertDialogRules($this->dialogs);
         Screen::assertRules($this->loading);
         if($this->interval <= 0){
@@ -51,6 +56,10 @@ class LoadingDetection extends BaseService
             $this->logger->warning('%s: Interval is not positive integer, use default value %u.', [__CLASS__, self::DEFAULT_INTERVAL]);
         }
         $this->delayOffset = intval($this->delay * 0.15);
+        if($this->timeout < $this->interval * 3){
+            $this->timeout = $this->interval * 3;
+            $this->logger->warning('%s: Timeout is not science, use minimum value %u.', [__CLASS__, $this->timeout]);
+        }
         $this->screen = Screen::instance($manager, $this->app);
         $this->delay = Delay::instance($manager, $this->app);
         $this->tapAction = TapScreen::instance($manager, $this->app);
@@ -88,8 +97,11 @@ class LoadingDetection extends BaseService
 
     public function wait()
     {
+        $waited = 0;
         while($this->isLoading() || $this->clickDialogs()){
             $this->delay->delayOffset($this->interval, $this->delayOffset);
+            $waited += $this->interval;
+            if($waited > $this->timeout) throw new \RuntimeException('Loading assertion timeout.');
         }
     }
 

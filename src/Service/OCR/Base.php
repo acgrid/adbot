@@ -11,7 +11,6 @@ namespace AB\Service\OCR;
 
 use AB\Manager;
 use AB\Service\BaseService;
-use AB\Service\IService;
 use AB\Service\Position;
 use AB\Service\Screen;
 
@@ -47,6 +46,7 @@ abstract class Base extends BaseService
     protected $width;
     protected $margin;
     protected $align;
+    protected $step;
     protected $result;
 
     public function __construct(Manager $manager, array $config)
@@ -109,6 +109,16 @@ abstract class Base extends BaseService
         $this->width = isset($config[self::CFG_WIDTH]) ? self::checkDistance($config[self::CFG_WIDTH]) : $this->defaultWidth;
         $this->margin = isset($config[self::CFG_MARGIN]) ? self::checkDistance($config[self::CFG_MARGIN]) : $this->defaultMargin;
         return $this;
+    }
+
+    /**
+     * Determine how the rect pointer moves
+     * @return int
+     */
+    protected function ocrStep()
+    {
+        if(!isset($this->step)) $this->step = $this->align == self::ALIGN_LEFT ? $this->width + $this->margin : -$this->width - $this->margin;
+        return $this->step;
     }
 
     /**
@@ -183,14 +193,13 @@ abstract class Base extends BaseService
 
         $this->align = Position::isStrictRect($rect) ? self::ALIGN_LEFT : self::ALIGN_RIGHT;
         $scanAt = $this->align == self::ALIGN_LEFT ? $rect[Position::X1] : $rect[Position::X2] - $this->width;
-        $step = $this->align == self::ALIGN_LEFT ? $this->width + $this->margin : -$this->width - $this->margin;
         $this->result = '';
 
         while($scanAt > $rect[Position::X1] && $scanAt < $rect[Position::X2]){
             $char = $this->ocrChar($this->rule, Position::makeRectangle($scanAt, $rect[Position::Y1], $scanAt + $this->width, $rect[Position::Y2]));
             if(is_null($char) && $this->ocrFailure() === Manager::RET_FINISH) break;
             $this->ocrConcat($this->ocrResult($char));
-            $scanAt += $step;
+            $scanAt += $this->ocrStep();
         }
         return $this->ocrComplete($this->result);
     }
