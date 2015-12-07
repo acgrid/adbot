@@ -8,6 +8,8 @@
 
 namespace AB;
 
+use AB\Action\Common\FinishBlock;
+use AB\Action\Common\PrintMessage;
 use AB\Action\Common\TestAction;
 use AB\Action\TestApp\TestAction as AppTestAction;
 use AB\Service\Test;
@@ -188,7 +190,13 @@ class ManagerTest extends \PHPUnit_Framework_TestCase
      */
     public function testAction()
     {
-
+        $this->configSkeleton[Manager::CFG_TITLE] = 'Dummy configuration for action test.';
+        $manager = Manager::factory($this->configSkeleton, $this->logger);
+        $action = $manager->getAction(self::TEST_ACTION);
+        $this->assertInstanceOf($manager->nsAction . Manager::COMMON . '\\' . self::TEST_ACTION, $action);
+        $this->assertNotSame($action, $manager->getAction('@' . self::TEST_ACTION));
+        $this->assertSame($action, $manager->getAction(Manager::COMMON . '\\' . self::TEST_ACTION));
+        $this->assertInstanceOf($manager->nsAction . self::NS_APP . '\\' . self::TEST_ACTION, $manager->getAction(self::NS_APP . '\\' . self::TEST_ACTION));
     }
 
     /**
@@ -196,7 +204,17 @@ class ManagerTest extends \PHPUnit_Framework_TestCase
      */
     public function testRun()
     {
-
+        $this->configSkeleton[Manager::CFG_TITLE] = 'Dummy configuration for running test.';
+        $this->configSkeleton[Manager::CFG_COMPONENTS][Manager::COMMON]['FinishBlock'] = [FinishBlock::CFG_COUNT => 2];
+        $this->configSkeleton[Manager::CFG_COMPONENTS][self::NS_APP]['PrintMessage'] = [PrintMessage::CFG_MESSAGE => 'Test Action Message'];
+        $this->configSkeleton[Manager::CFG_ACTIONS] = [
+            Manager::ACTION_INIT => ['PrintMessage', self::NS_APP . '\\PrintMessage',
+                [Manager::RES_CONFIG_CLASS => self::NS_APP . '\\RetryAction', Manager::RES_CONFIG_RETRY => 2, Manager::RES_CONFIG_RETRY_DELAY => 2000]
+            ],
+            Manager::ACTION_LOOP => [[Manager::RES_CONFIG_CLASS => 'PrintMessage', PrintMessage::CFG_MESSAGE => 'Loop message'], 'FinishBlock'],
+            Manager::ACTION_FINAL => [self::NS_APP . '\\TestAction']
+        ];
+        $this->assertEquals(Manager::RET_LOOP, Manager::run($this->configSkeleton, $this->logger));
     }
 
 }

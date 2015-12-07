@@ -22,10 +22,10 @@ class FinishBlock extends BaseAction
 
     public function run(array $context = [])
     {
-        if($this->leftCount > 1) $this->logger->info('This script will enter next phase when hit this checkpoint more %u times later.', [$this->leftCount]);
-        if($this->leftCount === 1) $this->logger->warn('This script will enter next phase at next time on this checkpoint!');
-        if($this->leftCount === 0) $this->logger->info('This script will enter next phase now due to a count control.');
-        return $this->leftCount-- ? Manager::RET_LOOP : Manager::RET_FINISH;
+        if($this->leftCount > 2) $this->logger->info('This script will enter next phase when hit this checkpoint more %u times later.', [$this->leftCount]);
+        if($this->leftCount === 2) $this->logger->warn('This script will enter next phase at next time on this checkpoint!');
+        if($this->leftCount === 1) $this->logger->info('This script will enter next phase now due to a count control.');
+        return --$this->leftCount ? Manager::RET_LOOP : Manager::RET_FINISH;
     }
 }
 

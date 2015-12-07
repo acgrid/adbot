@@ -285,11 +285,12 @@ final class Manager
         $retryDelay = self::readConfig($config, self::RES_CONFIG_RETRY_DELAY, self::ACTION_RETRY_DELAY);
         do{
             if($retry){
-                $this->logger->notice('Action %s wanted to retry, %u attempts remaining.', [$action, $retryLimit - $retry]);
+                $this->logger->warning('Action %s wanted to retry, %s attempts remaining.', [get_class($actionObject), 1 + $retryLimit - $retry]);
                 usleep($retryDelay);
             }
             $result = $actionObject->run($config);
-        }while($result === self::RET_AGAIN && $retry < $retryLimit);
+        }while($result === self::RET_AGAIN && ++$retry <= $retryLimit);
+        if($result === self::RET_AGAIN) $this->logger->warning('Retry limitation reached, skip anyway.');
         return $result;
     }
 
