@@ -224,7 +224,6 @@ final class Manager
 
     protected static function getActionClassName($app, $class)
     {
-        if($app != self::COMMON) $class = str_replace(self::COMMON . '\\', "$app\\", $class); // app-specific action first
         $relativeClass = "$app\\$class";
         if(isset(self::$componentClassNameCache[$relativeClass])) return self::$componentClassNameCache[$relativeClass];
         $realClass = self::$actionNamespace . $relativeClass;
@@ -233,7 +232,11 @@ final class Manager
 
     public function getComponent($app, $class, $temporary = false)
     {
-        if(strpos($class, self::$actionNamespace) === 0) $class = substr($class, strlen(self::$actionNamespace));
+        // already an FQN, strip it because prefer app-specific action. Never try right-pos search!
+        if(strpos($class, self::$actionNamespace) === 0){
+            $class = substr($class, strlen(self::$actionNamespace));
+            $class = substr($class, strpos($class, '\\') + 1);
+        }
         if($temporary || !isset($this->componentObjects[$app][$class])){
             $config = isset($this->components[$app]) && isset($this->components[$app][$class]) ? $this->components[$app][$class] :
                 (isset($this->components[self::COMMON][$class]) ? $this->components[self::COMMON][$class] : []);

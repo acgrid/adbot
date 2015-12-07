@@ -178,9 +178,17 @@ class ManagerTest extends \PHPUnit_Framework_TestCase
         $action->run();
         $this->assertSame($message, $action->test);
         // Test 4: Define app, get app by full qualified class name
-        $this->assertSame($action, $manager->getComponent(self::NS_APP, self::TEST_ACTION));
+        $this->assertSame($action, $manager->getComponent(self::NS_APP, $fullAppAction));
         // Test 5: Temporary object
-        $this->assertNotSame($action, $manager->getComponent(self::NS_APP, self::TEST_ACTION, true));
+        $this->assertNotSame($action, $manager->getComponent(self::NS_APP, $fullAppAction, true));
+    }
+
+    /**
+     * @depends testComponent
+     */
+    public function testAction()
+    {
+
     }
 
     /**
