@@ -215,6 +215,15 @@ class ManagerTest extends \PHPUnit_Framework_TestCase
             Manager::ACTION_FINAL => [self::NS_APP . '\\TestAction']
         ];
         $this->assertEquals(Manager::RET_LOOP, Manager::run($this->configSkeleton, $this->logger));
+        $this->configSkeleton[Manager::CFG_ACTIONS] = [
+            Manager::ACTION_LOOP => [
+                'FinishBlock',
+                [Manager::RES_CONFIG_CLASS => 'NextLoop', PrintMessage::CFG_MESSAGE => 'Enter next loop'],
+                [Manager::RES_CONFIG_CLASS => 'PrintMessage', PrintMessage::CFG_MESSAGE => 'This message should be never shown.'],
+            ],
+            Manager::ACTION_FINAL => [[Manager::RES_CONFIG_CLASS => 'AbortExecution', PrintMessage::CFG_MESSAGE => 'Exit script.']]
+        ];
+        $this->assertEquals(Manager::RET_EXIT, Manager::run($this->configSkeleton, $this->logger));
     }
 
 }
