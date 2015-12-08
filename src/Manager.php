@@ -73,10 +73,10 @@ final class Manager
 
     private $CONFIG;
     private $logger;
-    private $constants;
-    private $components;
-    private $actions = []; // [PHASE][index]
-    private $services = []; // [GAME][CLASS_NAME] => array
+    private $constants; // [key => value]
+    private $components; // [app => [class => [key => value]]]
+    private $actions = []; // [phase => [actions]]
+    private $services = []; // [app => [class => [key => value]]]
     /**
      * @var array [app][class]
      */

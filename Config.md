@@ -204,7 +204,7 @@ The `T` and `F` keys contain either another tree, or scale `string` as OCR resul
 ```json
 {
 "J": 
-	[{X: 0.14, Y: 0.48}, {X: 0.14, Y: 0.48}],
+	[{"X": 0.14, "Y": 0.48}, {"X": 0.14, "Y": 0.48}],
 "T": "1", 
 "F": 
 	{"J": "2",
