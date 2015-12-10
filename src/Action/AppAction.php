@@ -33,4 +33,14 @@ abstract class AppAction extends BaseAction
         $this->adb->stopActivity($this->package);
     }
 
+    public function getData($key, $default = '')
+    {
+        return $this->manager->getAppShared($this->app, $key, $default);
+    }
+
+    public function setData($key, $value)
+    {
+        return $this->manager->setConstant($key, $value);
+    }
+
 }

@@ -82,6 +82,7 @@ final class Manager
      */
     private $serviceObjects = [];
     private $componentObjects = [];
+    private $appSharedData = [];
 
     private static $serviceClassNameCache = [];
     private static $componentClassNameCache = [];
@@ -221,6 +222,17 @@ final class Manager
             }
         }
         return $this->serviceObjects[$app][$class];
+    }
+
+    public function getAppShared($app, $key, $default = null)
+    {
+        return isset($this->appSharedData[$app][$key]) ? $this->appSharedData[$app][$key] : $default;
+    }
+
+    public function setAppShared($app, $key, $value)
+    {
+        $this->appSharedData[$app][$key] = $value;
+        return $this;
     }
 
     protected static function getActionClassName($app, $class)

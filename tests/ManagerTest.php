@@ -228,4 +228,18 @@ class ManagerTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(Manager::RET_EXIT, Manager::run($this->configSkeleton, $this->logger));
     }
 
+    /**
+     * @depends testComponent
+     */
+    public function testSharedData()
+    {
+        $key = 'foo';
+        $value = 'bar';
+        $manager = Manager::factory($this->configSkeleton, $this->logger);
+        $this->assertSame($value, $manager->getAppShared(self::NS_APP, $key, $value));
+        $value = 'another';
+        $manager->setAppShared(self::NS_APP, $key, $value);
+        $this->assertSame($value, $manager->getAppShared(self::NS_APP, $key));
+    }
+
 }
