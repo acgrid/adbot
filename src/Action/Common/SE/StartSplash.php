@@ -24,10 +24,6 @@ class StartSplash extends AppAction
     private $button;
 
     /**
-     * @var Screen
-     */
-    private $screen;
-    /**
      * @var TapScreen
      */
     private $tapAction;
@@ -39,7 +35,6 @@ class StartSplash extends AppAction
         $this->button = Manager::readConfig($config, self::CFG_BUTTON);
         Screen::assertRules($this->rules);
         Position::assertRect($this->button);
-        $this->screen = Screen::instance($manager, $this->app);
         $this->tapAction = TapScreen::instance($manager, $this->app);
     }
 

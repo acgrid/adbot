@@ -11,13 +11,31 @@ namespace AB\Action;
 
 use AB\Manager;
 use AB\Service\ADB;
+use AB\Service\LoadingDetection;
+use AB\Service\Screen;
 
 abstract class AppAction extends BaseAction
 {
     const CFG_PACKAGE_NAME = 'package-name';
 
+    const SHARED_ASSURED_STATUS = 'status';
+    /**
+     * Java Package name of application
+     * @var string
+     */
     protected $package;
+    /**
+     * @var ADB
+     */
     protected $adb;
+    /**
+     * @var LoadingDetection
+     */
+    protected $detector;
+    /**
+     * @var Screen
+     */
+    protected $screen;
 
     public function __construct(Manager $manager, array $config)
     {
@@ -26,6 +44,8 @@ abstract class AppAction extends BaseAction
         $this->package = Manager::readConfig($config, self::CFG_PACKAGE_NAME);
 
         $this->adb = ADB::instance($manager, $this->app);
+        $this->detector = LoadingDetection::instance($manager, $this->app);
+        $this->screen = Screen::instance($manager, $this->app);
     }
 
     public function stopApp()

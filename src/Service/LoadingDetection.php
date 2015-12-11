@@ -23,7 +23,7 @@ class LoadingDetection extends BaseService
     const DEFAULT_TIMEOUT = 60000;
 
     const DIALOG_JUDGE = 'judge';
-    const DIALOG_BUTTON = 'btn';
+    const DIALOG_BUTTON = 'button';
 
     private $dialogs;
     private $loading;
@@ -49,7 +49,8 @@ class LoadingDetection extends BaseService
         $this->interval = intval(Manager::readConfig($config, self::CFG_CHECK_INTERVAL, self::DEFAULT_INTERVAL));
         $this->timeout = intval(Manager::readConfig($config, self::CFG_TIMEOUT, self::DEFAULT_TIMEOUT));
 
-        self::assertDialogRules($this->dialogs);
+        if(!is_array($this->dialogs)) throw new \InvalidArgumentException('Dialogs is not an array');
+        array_walk($this->dialogs, [__CLASS__, 'assertDialogRule']);
         Screen::assertRules($this->loading);
         if($this->interval <= 0){
             $this->interval = self::DEFAULT_INTERVAL;
@@ -65,13 +66,13 @@ class LoadingDetection extends BaseService
         $this->tapAction = TapScreen::instance($manager, $this->app);
     }
 
-    public static function assertDialogRules(array &$dialogs)
+    public static function assertDialogRule(array &$dialog)
     {
-        if(!isset($dialogs[self::DIALOG_JUDGE]) || !isset($dialogs[self::DIALOG_BUTTON])) {
-            throw new \InvalidArgumentException('Dialog rules is not an array.');
+        if(!isset($dialog[self::DIALOG_JUDGE]) || !isset($dialog[self::DIALOG_BUTTON])) {
+            throw new \InvalidArgumentException('Rules should be an array.');
         }
-        Screen::assertRules($dialogs[self::DIALOG_JUDGE]);
-        Position::assertRect($dialogs[self::DIALOG_BUTTON]);
+        Screen::assertRules($dialog[self::DIALOG_JUDGE]);
+        Position::assertRect($dialog[self::DIALOG_BUTTON]);
     }
 
     public function isLoading()
@@ -102,6 +103,24 @@ class LoadingDetection extends BaseService
             $this->delay->delayOffset($this->interval, $this->delayOffset);
             $waited += $this->interval;
             if($waited > $this->timeout) throw new \RuntimeException('Loading assertion timeout.');
+        }
+    }
+
+    /**
+     *
+     * @param array $assertion
+     */
+    public function waitFor(array $assertion, $timeout = null, $delay = null)
+    {
+        Screen::assertRules($assertion);
+        $timeout = is_int($timeout) && $timeout > 0 ? $timeout : $this->timeout;
+        $delay = is_int($delay) && $delay > 0 ? $delay : $this->delay;
+        $offset = intval($delay * 0.15);
+        $waited = 0;
+        while(!$this->screen->compareRules($assertion)){
+            $this->delay->delayOffset($delay, $offset);
+            $waited += $delay;
+            if($waited > $timeout) throw new \RuntimeException('Waiting for assertion timeout.');
         }
     }
 

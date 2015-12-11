@@ -77,7 +77,7 @@ class Position extends BaseService
     public static function isStrictRect(array &$rect)
     {
         self::assertRect($rect);
-        return $rect[self::X1] > $rect[self::X2] || $rect[self::Y1] > $rect[self::Y2];
+        return $rect[self::X1] <= $rect[self::X2] && $rect[self::Y1] <= $rect[self::Y2];
     }
 
     public static function assertStrictRect(array &$rect)

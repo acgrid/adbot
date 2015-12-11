@@ -55,13 +55,18 @@ abstract class Base extends BaseService
         $this->screen = Screen::instance($manager, $this->app);
         if(isset($config[self::CFG_RULES])) $this->setRules($config[self::CFG_RULES]);
         $this->setDefaultConfig($config);
-
     }
 
-    public static function checkDistance($value)
+    public static function getRectAlign(array &$rect)
+    {
+        Position::assertRect($rect);
+        return $rect[Position::X1] < $rect[Position::X2] ? self::ALIGN_LEFT : self::ALIGN_RIGHT;
+    }
+
+    public static function checkDistance($value, $allowNegative = false)
     {
         $value = (float) $value;
-        if($value < 0 || $value > 1) throw new \InvalidArgumentException("OCR distance must be decimal percentage (0~1).");
+        if($value < ($allowNegative ? -1 : 0) || $value > 1) throw new \InvalidArgumentException("OCR distance must be decimal percentage.");
         return $value;
     }
 
@@ -69,8 +74,8 @@ abstract class Base extends BaseService
     {
         if(!isset($rule[self::RULE_JUDGE]) || !is_array($rule[self::RULE_JUDGE])) throw new \InvalidArgumentException('OCR Rule lacks judgement or is not array.');
         foreach($rule[self::RULE_JUDGE] as &$point) Position::assertPoint($point);
-        if(!isset($rule[self::RULE_TRUE])) throw new \InvalidArgumentException('OCR Rule lacks true decision.');
-        if(!isset($rule[self::RULE_FALSE])) throw new \InvalidArgumentException('OCR Rule lacks false decision.');
+        if(!array_key_exists(self::RULE_TRUE, $rule)) throw new \InvalidArgumentException('OCR Rule lacks true decision.');
+        if(!array_key_exists(self::RULE_FALSE, $rule)) throw new \InvalidArgumentException('OCR Rule lacks false decision.');
         if(is_array($rule[self::RULE_TRUE])) self::checkRule($rule[self::RULE_TRUE]);
         if(is_array($rule[self::RULE_FALSE])) self::checkRule($rule[self::RULE_FALSE]);
         return true;
@@ -99,13 +104,13 @@ abstract class Base extends BaseService
     {
         $this->defaultColor = $this->screen->parseColor(Manager::readConfig($config, self::CFG_COLOR, 'FFFFFF:4'));
         $this->defaultWidth = self::checkDistance(Manager::readConfig($config, self::CFG_WIDTH, 0.001));
-        $this->defaultMargin = self::checkDistance(Manager::readConfig($config, self::CFG_MARGIN, 0));
+        $this->defaultMargin = self::checkDistance(Manager::readConfig($config, self::CFG_MARGIN, 0), true);
         return $this;
     }
 
     public function setConfig(&$config)
     {
-        $this->color = isset($config[self::CFG_COLOR]) ? $this->screen->parseColor($config[self::CFG_COLOR]) : $this->defaultColor;
+        $this->color = isset($config[self::CFG_COLOR]) && $this->screen->parseColor($config[self::CFG_COLOR]) ? $config[self::CFG_COLOR] : $this->defaultColor;
         $this->width = isset($config[self::CFG_WIDTH]) ? self::checkDistance($config[self::CFG_WIDTH]) : $this->defaultWidth;
         $this->margin = isset($config[self::CFG_MARGIN]) ? self::checkDistance($config[self::CFG_MARGIN]) : $this->defaultMargin;
         return $this;
@@ -130,6 +135,7 @@ abstract class Base extends BaseService
      */
     protected function ocrResult(&$char)
     {
+        $this->logger->debug("OCR char: %s", [$char]);
         return strval($char);
     }
 
@@ -140,9 +146,9 @@ abstract class Base extends BaseService
      * @param $char
      * @return string
      */
-    protected function ocrConcat(&$char)
+    protected function ocrConcat($char)
     {
-        return $this->result = $this->align == self::ALIGN_LEFT ? "$char{$this->result}" : "{$this->result}$char";
+        return $this->result = $this->align == self::ALIGN_LEFT ? "{$this->result}$char" : "$char{$this->result}";
     }
 
     /**
@@ -170,9 +176,12 @@ abstract class Base extends BaseService
 
     protected function judge(array $judge, array &$rect)
     {
-        array_walk($judge, function(&$point, $width, $height) use ($this){
-            $this->screen->translatePoint($point, $width, $height);
-        }, [abs($rect[Position::X2] - $rect[Position::X1]), abs($rect[Position::Y2] - $rect[Position::Y1])]);
+        array_walk($judge, function(&$point) use ($rect){
+            $point[Position::X] = ($rect[Position::X1] < $rect[Position::X2] ? $rect[Position::X1] : $rect[Position::X2]) +
+                $point[Position::X] * abs($rect[Position::X2] - $rect[Position::X1]);
+            $point[Position::Y] = ($rect[Position::Y1] < $rect[Position::Y2] ? $rect[Position::Y1] : $rect[Position::Y2]) +
+                $point[Position::Y] * abs($rect[Position::Y2] - $rect[Position::Y1]);
+        });
         return $this->screen->comparePositions($judge, $this->color);
     }
 
@@ -187,19 +196,25 @@ abstract class Base extends BaseService
     public function ocr($rule, array &$rect, array $override = [])
     {
         if(!isset($this->rules[$rule])) throw new \InvalidArgumentException("Undefined OCR rule '$rule'.");
-        $this->screen->translateRect($rect);
-        $this->setConfig($override);
         $this->rule = &$this->rules[$rule];
+        $this->setConfig($override);
+        if($this->width == 0) throw new \InvalidArgumentException('OCR Width is not initialized or passed.');
+        $this->align = self::getRectAlign($rect);
 
-        $this->align = Position::isStrictRect($rect) ? self::ALIGN_LEFT : self::ALIGN_RIGHT;
-        $scanAt = $this->align == self::ALIGN_LEFT ? $rect[Position::X1] : $rect[Position::X2] - $this->width;
+        $min = min($rect[Position::X1], $rect[Position::X2]);
+        $max = max($rect[Position::X1], $rect[Position::X2]);
+        $scanAt = $this->align == self::ALIGN_LEFT ? $min : $max - $this->width;
+        $this->logger->debug('Ready to OCR, Align=%s, Range=%.4f-%.4f, Start=%.4f, Width=%.4f, Margin=%.4f, Step=%.4f',
+            [$this->align, $min, $max, $scanAt, $this->width, $this->margin, $this->ocrStep()]);
         $this->result = '';
 
-        while($scanAt > $rect[Position::X1] && $scanAt < $rect[Position::X2]){
-            $char = $this->ocrChar($this->rule, Position::makeRectangle($scanAt, $rect[Position::Y1], $scanAt + $this->width, $rect[Position::Y2]));
+        while($scanAt >= $min && $scanAt + $this->width <= $max){
+            $ocrRect = Position::makeRectangle($scanAt, $rect[Position::Y1], $scanAt + $this->width, $rect[Position::Y2]);
+            $char = $this->ocrChar($this->rule, $ocrRect);
             if(is_null($char) && $this->ocrFailure() === Manager::RET_FINISH) break;
-            $this->ocrConcat($this->ocrResult($char));
+            $this->ocrConcat($char);
             $scanAt += $this->ocrStep();
+            $this->logger->debug('Forward=%.4f', [$scanAt]);
         }
         return $this->ocrComplete($this->result);
     }

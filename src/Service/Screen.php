@@ -147,8 +147,8 @@ class Screen extends BaseService
         Position::assertPoint($point);
         if($point[Position::X] < 1 && $point[Position::Y] < 1){
             if(!$width && !$this->width) throw new \InvalidArgumentException('Screen is not initialized, capture or load an image first.');
-            $point[Position::X] = intval($point[Position::X] * ($width ?: $this->width));
-            $point[Position::Y] = intval($point[Position::Y] * ($height ?: $this->height));
+            $point[Position::X] = intval(round($point[Position::X] * ($width ?: $this->width)));
+            $point[Position::Y] = intval(round($point[Position::Y] * ($height ?: $this->height)));
         }
         return $this;
     }
@@ -242,6 +242,7 @@ class Screen extends BaseService
     {
         $this->logger->debug('Request virtual dot comparison at %.3f*%.3f', [$point[Position::X], $point[Position::Y]]);
         $this->translatePoint($point)->translateRotatedPoint($point);
+        if($point[Position::X] > $this->x || $point[Position::Y] > $this->y) return false;
         return $this->compare($point[Position::X], $point[Position::Y], $color);
     }
 
