@@ -23,7 +23,7 @@ if($options['v'] === 'vv' || strcasecmp($options['verbose'], 'debug') === 0){
 }
 	
 $logger = new Logger('main');
-$logger->pushHandler(new StreamHandler(sprintf('%s/log/%s.log', __DIR__, date('Ymd-His')), Logger::DEBUG));
+$logger->pushHandler(new StreamHandler(sprintf('%s/log/%s.log', __DIR__, date('Ymd-His')), min($log_level, Logger::INFO)));
 $logger->pushHandler(new StreamHandler('php://output', $log_level));
 try{
     if(!isset($argv[++$opt_num])) throw new \InvalidArgumentException(sprintf("Usage: %s [-v[v|vv]|--verbose [debug|info]] CONFIG.json", $argv[0]));
