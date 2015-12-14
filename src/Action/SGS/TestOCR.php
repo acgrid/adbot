@@ -20,8 +20,12 @@ class TestOCR extends AppAction
     {
         $ocr = Number::instance($this->manager, $this->app);
         $align = Manager::readConfig($context, 'align', 'L');
-        $rect = $align == 'L' ? Position::makeRectangle(0, 0, 1, 1) : Position::makeRectangle(1, 1, 0, 0);
-        $result = $ocr->ocr('Test', $rect, [Number::CFG_COLOR => '000000', Number::CFG_WIDTH => 0.25, Number::CFG_MARGIN => 0]);
+        $mode = Manager::readConfig($context, 'scan', Number::SCAN_FIXED);
+        $rule = Manager::readConfig($context, 'rule', 'Test');
+        $color = Manager::readConfig($context, 'color', '000000');
+        $rect = $align == 'L' ? Position::makeRectangle(0, 0, 1.0, 1.0) : Position::makeRectangle(1.0, 1.0, 0, 0);
+        $result = $ocr->ocr($rule, $rect, [Number::CFG_COLOR => $color,
+            Number::CFG_SCAN_MODE => $mode, Number::CFG_WIDTH => 0.25, Number::CFG_MARGIN => 0]);
         $this->logger->info('OCR Result %s', [$result]);
         return Manager::RET_LOOP;
     }

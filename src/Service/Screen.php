@@ -145,10 +145,11 @@ class Screen extends BaseService
     public function translatePoint(array &$point, $width = null, $height = null)
     {
         Position::assertPoint($point);
-        if($point[Position::X] < 1 && $point[Position::Y] < 1){
+        if((is_float($point[Position::X]) && $point[Position::X] <= 1) || (is_float($point[Position::Y]) && $point[Position::Y] <= 1)){
             if(!$width && !$this->width) throw new \InvalidArgumentException('Screen is not initialized, capture or load an image first.');
-            $point[Position::X] = intval(round($point[Position::X] * ($width ?: $this->width)));
-            $point[Position::Y] = intval(round($point[Position::Y] * ($height ?: $this->height)));
+            if(!$height && !$this->height) throw new \InvalidArgumentException('Screen is not initialized, capture or load an image first.');
+            $point[Position::X] = intval(round($point[Position::X] * (($width ?: $this->width) - 1)));
+            $point[Position::Y] = intval(round($point[Position::Y] * (($height ?: $this->height) - 1)));
         }
         return $this;
     }
@@ -214,6 +215,11 @@ class Screen extends BaseService
      */
     public function compare($x, $y, $color)
     {
+        if($x < 0 || $y < 0 || $x >= $this->x || $y >= $this->y){
+            $this->logger->warning("Attempt to access pixel %d*%d, while the image size is %u*%u.",
+                [$x, $y, $this->x, $this->y]);
+            return false;
+        }
         $testColor = $this->parseColor($color);
         $imageColor = $this->getColorRGB($x, $y);
         $this->logger->debug('Color comparison at %u*%u, actual=%s, expected=%s, tolerance=%u',
@@ -231,6 +237,16 @@ class Screen extends BaseService
         }
     }
 
+    public function compareRotated($x, $y, $color)
+    {
+        if($this->rotateFix){
+            $x = $x + $y;
+            $y = $x - $y;
+            $x = $x - $y;
+        }
+        return $this->compare($x, $y, $color);
+    }
+
     /**
      * Support both absolute and relative point with rotate fix.
      *
@@ -241,9 +257,8 @@ class Screen extends BaseService
     public function comparePoint(&$point, $color)
     {
         $this->logger->debug('Request virtual dot comparison at %.3f*%.3f', [$point[Position::X], $point[Position::Y]]);
-        $this->translatePoint($point)->translateRotatedPoint($point);
-        if($point[Position::X] > $this->x || $point[Position::Y] > $this->y) return false;
-        return $this->compare($point[Position::X], $point[Position::Y], $color);
+        $this->translatePoint($point);
+        return $this->compareRotated($point[Position::X], $point[Position::Y], $color);
     }
 
     public function comparePos($pos, $color)

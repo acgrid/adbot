@@ -16,10 +16,14 @@ use AB\Service\Screen;
 
 abstract class Base extends BaseService
 {
+    const CFG_SCAN_MODE = 'scan';
     const CFG_RULES = 'rules';
     const CFG_COLOR = 'color';
     const CFG_WIDTH = 'width';
     const CFG_MARGIN = 'margin';
+
+    const SCAN_FIXED = 'Fixed';
+    const SCAN_ADAPTIVE = 'Auto';
 
     const RULE_JUDGE = 'J';
     const RULE_COLOR = 'C';
@@ -36,15 +40,28 @@ abstract class Base extends BaseService
 
     // default config
     protected $rules = [];
+    protected $defaultMode;
     protected $defaultColor;
     protected $defaultWidth;
     protected $defaultMargin;
 
     // Working config
     protected $rule;
+    protected $mode;
     protected $color;
+    /**
+     * Used for fixed scan distance
+     * @var float
+     */
     protected $width;
     protected $margin;
+    /**
+     * @var array
+     */
+    protected $scanCache;
+    /**
+     * @var string
+     */
     protected $align;
     protected $step;
     protected $result;
@@ -55,6 +72,12 @@ abstract class Base extends BaseService
         $this->screen = Screen::instance($manager, $this->app);
         if(isset($config[self::CFG_RULES])) $this->setRules($config[self::CFG_RULES]);
         $this->setDefaultConfig($config);
+    }
+
+    public static function checkMode($mode)
+    {
+        if($mode != self::SCAN_ADAPTIVE && $mode != self::SCAN_FIXED) throw new \InvalidArgumentException("Scan mode '$mode' is not supported.");
+        return $mode;
     }
 
     public static function getRectAlign(array &$rect)
@@ -102,6 +125,7 @@ abstract class Base extends BaseService
 
     public function setDefaultConfig(&$config)
     {
+        $this->defaultMode = self::checkMode(Manager::readConfig($config, self::CFG_SCAN_MODE));
         $this->defaultColor = $this->screen->parseColor(Manager::readConfig($config, self::CFG_COLOR, 'FFFFFF:4'));
         $this->defaultWidth = self::checkDistance(Manager::readConfig($config, self::CFG_WIDTH, 0.001));
         $this->defaultMargin = self::checkDistance(Manager::readConfig($config, self::CFG_MARGIN, 0), true);
@@ -110,10 +134,47 @@ abstract class Base extends BaseService
 
     public function setConfig(&$config)
     {
+        $this->mode = isset($config[self::CFG_SCAN_MODE]) ? self::checkMode($config[self::CFG_SCAN_MODE]) : $this->defaultMode;
         $this->color = isset($config[self::CFG_COLOR]) && $this->screen->parseColor($config[self::CFG_COLOR]) ? $config[self::CFG_COLOR] : $this->defaultColor;
-        $this->width = isset($config[self::CFG_WIDTH]) ? self::checkDistance($config[self::CFG_WIDTH]) : $this->defaultWidth;
-        $this->margin = isset($config[self::CFG_MARGIN]) ? self::checkDistance($config[self::CFG_MARGIN]) : $this->defaultMargin;
+        if($this->mode === self::SCAN_FIXED){
+            $this->width = isset($config[self::CFG_WIDTH]) ? self::checkDistance($config[self::CFG_WIDTH]) : $this->defaultWidth;
+            $this->margin = isset($config[self::CFG_MARGIN]) ? self::checkDistance($config[self::CFG_MARGIN]) : $this->defaultMargin;
+        }
         return $this;
+    }
+
+    public static function range($start, $end)
+    {
+        if(!is_int($start) || !is_int($end) || $start === $end) throw new \InvalidArgumentException('Scan range must be integer and can not be the same.');
+        $step = $start < $end ? 1 : -1;
+        for($i = $start; $i <> $end + $step; $i += $step) yield $i;
+    }
+
+    protected function compareCached($x, $y)
+    {
+        if(!isset($this->scanCache[$x][$y])){
+            $this->scanCache[$x][$y] = $this->screen->compareRotated($x, $y, $this->color);
+        }
+        return $this->scanCache[$x][$y];
+    }
+
+    protected function searchInLine($direction, $axis, $start, $end)
+    {
+        if($direction <> Position::X && $direction <> Position::Y) throw new \InvalidArgumentException("Direction is unknown.");
+        if(!is_int($axis) || !is_int($start) || !is_int($end) || $axis < 0 || $start < 0 || $end < 0) throw new \InvalidArgumentException("Actual pixel point is required for line search.");
+        $constantAxis = $direction === Position::X ? Position::Y : Position::X;
+        $point[$constantAxis] = $axis;
+        $iteration = self::range($start, $end);
+        foreach($iteration as $value){
+            $point[$direction] = $value;
+            if($this->compareCached($point[Position::X], $point[Position::Y])){
+                $this->logger->debug('Line search on %s axis found at (%u,%u), requested %u to %u.',
+                    [$direction, $point[Position::X], $point[Position::Y], $start, $end]);
+                return $value;
+            }
+        }
+        $this->logger->debug('Line search found nothing. %s=%u - %u, %s=%u.', [$direction, $start, $end, $constantAxis, $axis]);
+        return false;
     }
 
     /**
@@ -135,7 +196,7 @@ abstract class Base extends BaseService
      */
     protected function ocrResult(&$char)
     {
-        $this->logger->debug("OCR char: %s", [$char]);
+        $this->logger->info("OCR char: %s", [$char]);
         return strval($char);
     }
 
@@ -198,24 +259,71 @@ abstract class Base extends BaseService
         if(!isset($this->rules[$rule])) throw new \InvalidArgumentException("Undefined OCR rule '$rule'.");
         $this->rule = &$this->rules[$rule];
         $this->setConfig($override);
-        if($this->width == 0) throw new \InvalidArgumentException('OCR Width is not initialized or passed.');
         $this->align = self::getRectAlign($rect);
-
-        $min = min($rect[Position::X1], $rect[Position::X2]);
-        $max = max($rect[Position::X1], $rect[Position::X2]);
-        $scanAt = $this->align == self::ALIGN_LEFT ? $min : $max - $this->width;
-        $this->logger->debug('Ready to OCR, Align=%s, Range=%.4f-%.4f, Start=%.4f, Width=%.4f, Margin=%.4f, Step=%.4f',
-            [$this->align, $min, $max, $scanAt, $this->width, $this->margin, $this->ocrStep()]);
         $this->result = '';
+        if($this->mode === self::SCAN_FIXED){
+            $minX = min($rect[Position::X1], $rect[Position::X2]);
+            $maxX = max($rect[Position::X1], $rect[Position::X2]);
+            if($this->width == 0) throw new \InvalidArgumentException('OCR Width is not initialized or passed.');
+            $scanAt = $this->align == self::ALIGN_LEFT ? $minX : $maxX - $this->width;
+            $this->logger->debug('Ready to OCR with fixed stepping, Align=%s, Range=%.4f-%.4f, Start=%.4f, Width=%.4f, Margin=%.4f, Step=%.4f',
+                [$this->align, $minX, $maxX, $scanAt, $this->width, $this->margin, $this->ocrStep()]);
 
-        while($scanAt >= $min && $scanAt + $this->width <= $max){
-            $ocrRect = Position::makeRectangle($scanAt, $rect[Position::Y1], $scanAt + $this->width, $rect[Position::Y2]);
-            $char = $this->ocrChar($this->rule, $ocrRect);
-            if(is_null($char) && $this->ocrFailure() === Manager::RET_FINISH) break;
-            $this->ocrConcat($char);
-            $scanAt += $this->ocrStep();
-            $this->logger->debug('Forward=%.4f', [$scanAt]);
+            while($scanAt >= $minX && $scanAt + $this->width <= $maxX){
+                $ocrRect = Position::makeRectangle($scanAt, $rect[Position::Y1], $scanAt + $this->width, $rect[Position::Y2]);
+                $char = $this->ocrChar($this->rule, $ocrRect);
+                if(is_null($char) && $this->ocrFailure() === Manager::RET_FINISH) break;
+                $this->ocrConcat($char);
+                $scanAt += $this->ocrStep();
+                $this->logger->debug('Forward=%.4f', [$scanAt]);
+            }
+        }elseif($this->mode === self::SCAN_ADAPTIVE){
+            $this->screen->translateRect($rect);
+            $this->scanCache = [];
+            $minX = min($rect[Position::X1], $rect[Position::X2]);
+            $maxX = max($rect[Position::X1], $rect[Position::X2]);
+            $minY = min($rect[Position::Y1], $rect[Position::Y2]);
+            $maxY = max($rect[Position::Y1], $rect[Position::Y2]);
+            $scanAt = $rect[Position::X1];
+            $step = $this->align === self::ALIGN_LEFT ? 1 : -1;
+            $this->logger->debug('Ready to OCR with adaptive width. Align=%s, Range=%u-%u, Step=%d', [$this->align, $minX, $maxX, $step]);
+            while($scanAt >= $minX && $scanAt <= $maxX){
+                $Y1 = $maxY;
+                $Y2 = $minY;
+                // Get X1
+                while($scanAt >= $minX && $scanAt <= $maxX){
+                    if($Y1 = $this->searchInLine(Position::Y, $scanAt, $minY, $maxY)) break;
+                    $scanAt += $step;
+                }
+                $X1 = $scanAt;
+                // Get X2, Y1
+                while($scanAt >= $minX && $scanAt <= $maxX &&
+                    ($foundY = $this->searchInLine(Position::Y, $scanAt, $minY, $maxY))){
+                    if($foundY < $Y1) $Y1 = $foundY;
+                    $scanAt += $step;
+                }
+                $X2 = $scanAt;
+                if($scanAt < $minX || $scanAt > $maxX) break;
+                // Get Y2
+                for($scanY = $maxY; $scanY > $Y1; $scanY--){
+                    if($this->searchInLine(Position::X, $scanY, $X1, $X2)){
+                        $Y2 = $scanY;
+                        break;
+                    }
+                }
+                // OCR
+                $ocrRect = Position::makeRectangle($X1, $Y1, $X2, $Y2);
+                $this->logger->info('Possible character from (%u,%u) to (%u,%u)', [$X1, $Y1, $X2, $Y2]);
+                $char = $this->ocrChar($this->rule, $ocrRect);
+                if(is_null($char) && $this->ocrFailure() === Manager::RET_FINISH) break;
+                $this->ocrConcat($char);
+                $scanAt += $step;
+                $this->logger->debug('Forward=%u', [$scanAt]);
+            }
+        }else{
+            throw new \LogicException("OCR scan mode is exceptional.");
         }
+
         return $this->ocrComplete($this->result);
     }
 

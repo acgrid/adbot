@@ -13,6 +13,7 @@
 		},
 		"SGS":{
 			"OCR\\Number":{
+				"scan": "Auto",
 				"rules":{
 					"Test": {
 						"J": [{"X": 0.5, "Y": 0.25}],
