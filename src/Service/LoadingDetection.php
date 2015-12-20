@@ -8,8 +8,6 @@
 
 namespace AB\Service;
 
-
-use AB\Action\Common\TapScreen;
 use AB\Manager;
 
 class LoadingDetection extends BaseService
@@ -39,7 +37,7 @@ class LoadingDetection extends BaseService
      * @var Delay
      */
     private $delay;
-    private $tapAction;
+    private $input;
 
     public function __construct(Manager $manager, array $config)
     {
@@ -63,7 +61,7 @@ class LoadingDetection extends BaseService
         }
         $this->screen = Screen::instance($manager, $this->app);
         $this->delay = Delay::instance($manager, $this->app);
-        $this->tapAction = TapScreen::instance($manager, $this->app);
+        $this->input = Input::instance($manager, $this->app);
     }
 
     public static function assertDialogRule(array &$dialog)
@@ -89,7 +87,7 @@ class LoadingDetection extends BaseService
         foreach($this->dialogs as $index => $dialog){
             if($this->screen->compareRules($dialog[self::DIALOG_JUDGE])){
                 $this->logger->info('Common dialog %s encountered.', [$index]);
-                $this->tapAction->run([TapScreen::CFG_RECTANGLES => $dialog[self::DIALOG_BUTTON]]);
+                $this->input->tapInRect($dialog[self::DIALOG_BUTTON]);
                 return true;
             }
         }
